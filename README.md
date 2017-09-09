@@ -11,6 +11,4 @@ http://schemas.microsoft.com/sqlserver/reporting/2016/01/reportdefinition
 
 Details and behind the scenes:
 
-#todo, waiting for blog-entry...#
-
-https://blogs.technet.microsoft.com/johannh/
+https://blogs.technet.microsoft.com/johannh/2017/09/09/sql-server-database-objects-and-dependencies-report/
