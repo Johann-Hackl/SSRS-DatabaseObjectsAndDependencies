@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en-US" style="background-image: url(&quot;data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==&quot;);"><head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+	
+	<meta name="viewport" content="width=device-width">
+	<link rel="profile" href="http://gmpg.org/xfn/11">
+	<link rel="stylesheet" href="./css/bootstrap.min.css">
+
+<title>SQL Server Database Objects and Dependencies Report – Dealing with the Microsoft Data Platform</title>
+<link rel="dns-prefetch" href="https://ajax.aspnetcdn.com/">
+<link rel="dns-prefetch" href="https://s.w.org/">
+		
+
+		<style type="text/css">
+img.wp-smiley,
+img.emoji {
+	display: inline !important;
+	border: none !important;
+	box-shadow: none !important;
+	height: 1em !important;
+	width: 1em !important;
+	margin: 0 .07em !important;
+	vertical-align: -0.1em !important;
+	background: none !important;
+	padding: 0 !important;
+}
+</style>
+<link rel="stylesheet" id="microsoft-parent-style-css" href="./css/style.css" type="text/css" media="all">
+<link rel="stylesheet" id="microsoft-child-style-css" href="./css/style(1).css" type="text/css" media="all">
+
+
+
+
+<link href="./css/style(2).css" rel="stylesheet" type="text/css">
+</head>
+<body class="post-template-default single single-post postid-325 single-format-standard">
+
+
+
+<div id="page" class="site container-fluid">	
+	<div id="site-content" class="site-content row">
+
+	<div id="primary" class="content-area ">
+		<div id="single-content" class="div-content">
+
+			
+				
+<article id="post-325" class="post-325 post type-post status-publish format-standard hentry category-sql-server category-ssms category-ssrs tag-sql-server tag-ssms tag-ssrs">
+
+	<header class="entry-header single">
+		<h1 class="entry-title">SQL Server Database Objects and Dependencies Report</h1>		
+		<hr>
+	</header><!-- .entry-header -->
+
+	<div class="entry-content single">
+		<p>SQL Server exposes very much information using Dynamic Management Views and System Catalog Views. I like the idea of self-documenting systems. Manually maintained documentation tends to be outdated very fast and therefore is obsolete in many cases. What I've missed, is a report visualizing the Database Objects and Dependencies at a glance. Here we go! The result may be used in addition to the <a target="_blank" href="https://github.com/Johann-Hackl/SSRS-Inventory/" rel="noopener noreferrer">self-documenting Report Environment</a>.</p>
+<p>The idea is, to see the objects of the current database with their dependencies and where they are referenced by others.</p>
+<p>Additionally, I'd like to control the type of dependency: all, only cross-schema, only cross-database or only cross-server.</p>
+<p>The result should also be neat and handy to be usable directly within SQL Server Management Studio as Custom Report with no further requirements. And on top, it should work for a current SQL Server Reporting Services Instance (2016) and for SSRS 2012.</p>
+<h1>How the result should look like</h1>
+<p>After a parameter pane, an overview with the dependencies and detailed objects and dependencies are listed:</p>
+<p><img width="1860" height="1046" class="alignnone size-full wp-image-345" alt="" src="./media/Report-ResultWithoutDocumentMap.png"></p>
+<p>&nbsp;</p>
+<h1>Report Design</h1>
+<h2>Basic Design</h2>
+<p>The basic design for the report consists of:</p>
+<ul>
+<li>Headline</li>
+<li>Parameter Pane, showing the three report parameters in the report result, and usable as toggle-items to refresh the report with a different parameter set</li>
+<li>Dependencies Overview, a matrix of the result, filtered for rows containing dependencies</li>
+<li>Details, starting with Column-Toggle-Items (Table bound to Dummy-Dataset) and the actual Detail-Table</li>
+</ul>
+<p>Design View:</p>
+<p><img width="2461" height="733" class="alignnone size-full wp-image-346" alt="" src="./media/Report-ReportDesign.png"></p>
+<h2>Parameter Pane</h2>
+<p>The parameter pane is based on the Dummy-Dataset, rendering all rows as header-rows.</p>
+<p>Cells containing the currently selected parameter are not rendered as links using a dynamic report action, e.g. "all"-Cell for ShowDependencies:</p>
+<blockquote>
+<pre>=IIf(Parameters!ShowDependencies.Value = "all", Nothing, Parameters!ReportName.Value)</pre>
+</blockquote>
+<p>The background color for cells containing the currently selected parameter is set to grey, e.g. cells for ShowDependencies:</p>
+<blockquote>
+<pre>=IIf(Parameters!ShowDependencies.Label = me.Value, "LightGrey", "White")</pre>
+</blockquote>
+<h2>Overview</h2>
+<p>The overview is a matrix for all rows containing references, using the following filter condition:<br>
+<!-- HTML generated using hilite.me -->
+</p><div style="background: #ffffff;overflow: auto;width: auto;border: solid gray;border-width: .1em .1em .1em .8em;padding: .2em .6em">
+<pre style="margin: 0;line-height: 125%"><span style="color: #007700">&lt;Filters&gt;</span>
+	<span style="color: #007700">&lt;Filter&gt;</span>
+	  <span style="color: #007700">&lt;FilterExpression&gt;</span>=Fields!ReferencedObjectName.Value<span style="color: #007700">&lt;/FilterExpression&gt;</span>
+	  <span style="color: #007700">&lt;Operator&gt;</span>NotEqual<span style="color: #007700">&lt;/Operator&gt;</span>
+	  <span style="color: #007700">&lt;FilterValues&gt;</span>
+		<span style="color: #007700">&lt;FilterValue&gt;</span>=Nothing<span style="color: #007700">&lt;/FilterValue&gt;</span>
+	  <span style="color: #007700">&lt;/FilterValues&gt;</span>
+	<span style="color: #007700">&lt;/Filter&gt;</span>
+<span style="color: #007700">&lt;/Filters&gt;</span></pre>
+</div>
+<h2>Details</h2>
+<p>The details are listed as grouped table containing object details and further columns for References and Referenced By:</p>
+<ul>
+<li>Column-Visibility could be toggled with textboxes of separate table.</li>
+<li>2nd Header-Row of main-table also contains a sub-table for each column with the corresponding row-headers.</li>
+<li>Bookmark-Actions for objects mentioned as reference or referenced-by to enable direct navigation within report.</li>
+</ul>
+<p>Toggle-Items:</p>
+<ul>
+<li>Initially, the rows for all non-dbo-Schema of the current database are shown, each other rows are collapsed by default.</li>
+<li>The reference-column is visible by default.</li>
+<li>The referencedBy-column isn't visible by default.</li>
+</ul>
+<h1>Report Data Elements</h1>
+<p>The report is based on a single Data Source and some Report Parameter and Datasets.</p>
+<h2>Overview</h2>
+<p><img width="350" height="778" class="alignnone wp-image-355" alt="" src="./media/Report-ReportData.png"></p>
+<h2>Report Parameter</h2>
+<ol>
+<li>ShowDependencies, filters dependencies: all / Cross-Schema / Cross-Database / Cross-Server</li>
+<li>FilterReferencing: all / with / without</li>
+<li>FilterReferencedBy: all / with / without</li>
+<li>ReportName: hidden, used for report actions, executing the current report with a different parameter set.<br>
+When executed as SSMS Custom Report, the value for Globals!ReportName is not set. Therefore, this parameter is used as single point of calculation for all report actions:</li>
+</ol>
+<blockquote>
+<pre>=IIf(Globals!ReportName = "", "SSRS-DatabaseObjectsAndDependencies", Globals!ReportName)</pre>
+</blockquote>
+<h1>Getting the data</h1>
+<p>I'd like to look at several aspects to gather the information for this report. The overall query is to big to be a reasonable part of this post - take a look at the report definition to get the full query.</p>
+<h2>Getting the details for foreign keys</h2>
+<p>The System Catalog View sys.foreign_keys contain the foreign keys of the current database:</p>
+<!-- HTML generated using hilite.me -->
+<div style="background: #ffffff;overflow: auto;width: auto;border: solid gray;border-width: .1em .1em .1em .8em;padding: .2em .6em">
+<pre style="margin: 0;line-height: 125%"><span style="color: #008800;font-weight: bold">SELECT</span> 
+	<span style="color: #888888">-- source</span>
+	<span style="color: #333333">@@</span>SERVERNAME <span style="color: #008800;font-weight: bold">AS</span> SourceServerName,
+	DB_NAME() <span style="color: #008800;font-weight: bold">AS</span> SourceDatabaseName,
+	OBJECT_SCHEMA_NAME(src.object_id) <span style="color: #008800;font-weight: bold">AS</span> SourceSchemaName,
+	src.[<span style="color: #008800;font-weight: bold">type</span>] <span style="color: #008800;font-weight: bold">AS</span> SourceObjectType,
+	src.type_desc <span style="color: #008800;font-weight: bold">AS</span> SourceObjectTypeDesc,
+	src.name <span style="color: #008800;font-weight: bold">AS</span> SourceObjectName,
+
+	<span style="color: #888888">-- destination</span>
+	<span style="color: #333333">@@</span>SERVERNAME <span style="color: #008800;font-weight: bold">AS</span> DestinationServerName,
+	DB_NAME() <span style="color: #008800;font-weight: bold">AS</span> DestinationDatabaseName,
+	OBJECT_SCHEMA_NAME(dest.object_id) <span style="color: #008800;font-weight: bold">AS</span> DestinationSchemaName, 
+	dest.[<span style="color: #008800;font-weight: bold">type</span>] <span style="color: #008800;font-weight: bold">AS</span> DestinationObjectType,
+	dest.type_desc <span style="color: #008800;font-weight: bold">AS</span> DestinationObjectTypeDesc,
+	dest.name <span style="color: #008800;font-weight: bold">AS</span> DestinationObjectName
+<span style="color: #008800;font-weight: bold">FROM</span> sys.foreign_keys <span style="color: #008800;font-weight: bold">AS</span> k
+<span style="color: #888888">-- Foreign Keys are only within same database</span>
+<span style="color: #008800;font-weight: bold">LEFT</span> <span style="color: #008800;font-weight: bold">JOIN</span> sys.objects <span style="color: #008800;font-weight: bold">AS</span> src <span style="color: #008800;font-weight: bold">ON</span> src.object_id <span style="color: #333333">=</span> k.parent_object_id
+<span style="color: #008800;font-weight: bold">LEFT</span> <span style="color: #008800;font-weight: bold">JOIN</span> sys.objects <span style="color: #008800;font-weight: bold">AS</span> dest <span style="color: #008800;font-weight: bold">ON</span> dest.object_id <span style="color: #333333">=</span> k.referenced_object_id
+<span style="color: #888888">-- Hide self-references</span>
+<span style="color: #008800;font-weight: bold">WHERE</span> k.parent_object_id <span style="color: #333333">&lt;&gt;</span> k.referenced_object_id
+</pre>
+</div>
+<h2>Getting the details for SQL references</h2>
+<p>SQL Server exposes the dependency information, e.g. of stored procedures or views in a System Catalog View sys.sql_expression_dependencies. References within the same database are there, but also references to other databases or even to remote objects. This may also contain references to obsolete objects, which no longer exist.</p>
+<!-- HTML generated using hilite.me -->
+<div style="background: #ffffff;overflow: auto;width: auto;border: solid gray;border-width: .1em .1em .1em .8em;padding: .2em .6em">
+<pre style="margin: 0;line-height: 125%"><span style="color: #008800;font-weight: bold">SELECT</span> 
+	<span style="color: #888888">-- source</span>
+	<span style="color: #333333">@@</span>SERVERNAME <span style="color: #008800;font-weight: bold">AS</span> SourceServerName,
+	DB_NAME() <span style="color: #008800;font-weight: bold">AS</span> SourceDatabaseName,
+	OBJECT_SCHEMA_NAME(src.object_id) <span style="color: #008800;font-weight: bold">AS</span> SourceSchemaName,
+	src.[<span style="color: #008800;font-weight: bold">type</span>] <span style="color: #008800;font-weight: bold">AS</span> SourceObjectType,
+	src.type_desc <span style="color: #008800;font-weight: bold">AS</span> SourceObjectTypeDesc,
+	src.name <span style="color: #008800;font-weight: bold">AS</span> SourceObjectName,
+
+	<span style="color: #888888">-- destination</span>
+	<span style="color: #008800;font-weight: bold">ISNULL</span>(r.referenced_server_name, <span style="color: #333333">@@</span>SERVERNAME) <span style="color: #008800;font-weight: bold">AS</span> DestinationServerName, 
+	<span style="color: #008800;font-weight: bold">ISNULL</span>(r.referenced_database_name, DB_NAME()) <span style="color: #008800;font-weight: bold">AS</span> DestinationDatabaseName,
+	<span style="color: #008800;font-weight: bold">ISNULL</span>(r.referenced_schema_name, OBJECT_SCHEMA_NAME(r.referenced_id)) <span style="color: #008800;font-weight: bold">AS</span> DestinationSchemaName,
+	dest.[<span style="color: #008800;font-weight: bold">type</span>] <span style="color: #008800;font-weight: bold">AS</span> DestinationObjectType,
+	dest.type_desc <span style="color: #008800;font-weight: bold">AS</span> DestinationObjectTypeDesc,
+	r.referenced_entity_name <span style="color: #008800;font-weight: bold">AS</span> DestinationObjectName
+<span style="color: #008800;font-weight: bold">FROM</span> sys.objects <span style="color: #008800;font-weight: bold">AS</span> src
+<span style="color: #008800;font-weight: bold">INNER</span> <span style="color: #008800;font-weight: bold">JOIN</span> sys.sql_expression_dependencies <span style="color: #008800;font-weight: bold">AS</span> r <span style="color: #008800;font-weight: bold">ON</span> r.referencing_id <span style="color: #333333">=</span> src.object_id
+<span style="color: #008800;font-weight: bold">LEFT</span> <span style="color: #008800;font-weight: bold">JOIN</span> sys.objects <span style="color: #008800;font-weight: bold">AS</span> dest <span style="color: #008800;font-weight: bold">ON</span> dest.object_id <span style="color: #333333">=</span> r.referenced_id 
+<span style="color: #008800;font-weight: bold">WHERE</span> 	
+	<span style="color: #888888">-- Hide references to temporary objects within Stored Procedure</span>
+	<span style="color: #008800;font-weight: bold">NOT</span> (src.type_desc <span style="color: #333333">=</span> <span style="background-color: #fff0f0">'SQL_STORED_PROCEDURE'</span> <span style="color: #008800;font-weight: bold">AND</span> r.referenced_id <span style="color: #008800;font-weight: bold">IS</span> <span style="color: #008800;font-weight: bold">NULL</span> <span style="color: #008800;font-weight: bold">AND</span> r.referenced_schema_name <span style="color: #008800;font-weight: bold">IS</span> <span style="color: #008800;font-weight: bold">NULL</span>)
+</pre>
+</div>
+<h2>Getting the details for Objects</h2>
+<p>The objects of the current database are exposed in the System Catalog View sys.objects. The common name of table types may differ and therefore the one of sys.table_types is used.<br>
+<!-- HTML generated using hilite.me -->
+</p><div style="background: #ffffff;overflow: auto;width: auto;border: solid gray;border-width: .1em .1em .1em .8em;padding: .2em .6em">
+<pre style="margin: 0;line-height: 125%"><span style="color: #008800;font-weight: bold">SELECT</span> 
+	<span style="color: #333333">@@</span>SERVERNAME <span style="color: #008800;font-weight: bold">AS</span> ServerName,
+	DB_NAME() <span style="color: #008800;font-weight: bold">AS</span> DatabaseName,
+	OBJECT_SCHEMA_NAME(src.object_id) <span style="color: #008800;font-weight: bold">AS</span> SchemaName,
+	src.[<span style="color: #008800;font-weight: bold">type</span>] <span style="color: #008800;font-weight: bold">AS</span> ObjectType,
+	src.type_desc <span style="color: #008800;font-weight: bold">AS</span> ObjectTypeDesc,
+	<span style="color: #008800;font-weight: bold">ISNULL</span>(srcTableType.name, src.name) <span style="color: #008800;font-weight: bold">AS</span> ObjectName
+<span style="color: #008800;font-weight: bold">FROM</span> sys.objects <span style="color: #008800;font-weight: bold">AS</span> src
+<span style="color: #888888">-- in case of Table Types, name in sys.objects differs from actual name in sy.table_types</span>
+<span style="color: #008800;font-weight: bold">LEFT</span> <span style="color: #008800;font-weight: bold">JOIN</span> sys.table_types <span style="color: #008800;font-weight: bold">AS</span> srcTableType <span style="color: #008800;font-weight: bold">ON</span> srcTableType.type_table_object_id <span style="color: #333333">=</span> src.object_id
+</pre>
+</div>
+<h2>Overall process</h2>
+<p>Steps to get the overall result:</p>
+<ol>
+<li>The data of all known dependencies in the current database for foreign keys and SQL references are gathered.</li>
+<li>The filtered result using parameter @ShowDependencies (all / Cross-Schema / Cross-Database / Cross-Server) is stored in a temporary table #AllReferences.</li>
+<li>The object details for all objects of the current database are stored in a temporary table #AllObjects.</li>
+<li>Objects only mentioned in dependencies, based on #AllReferences, are added to #AllObjects.</li>
+<li>Objects of the following type are not listed in the result itself:<br>
+INTERNAL_TABLE, SYSTEM_TABLE, CHECK_CONSTRAINT, DEFAULT_CONSTRAINT, FOREIGN_KEY_CONSTRAINT, PRIMARY_KEY_CONSTRAINT, UNIQUE_CONSTRAINT<br>
+In case of constraints, they're in the result as dependency information for their tables without mentioning the name of the actual constraint: No "FK_xyz_abc" in the result, but a reference of table xyz to table abc and vice versa as referenced-by.</li>
+<li>Building up the overall result, combining the data of #AllObjects and #AllReferences to a single table.</li>
+</ol>
+<p>Columns of the overall result including object itself, dependencies as Referenced..., dependent objects as ReferencedBy...:</p>
+<ul>
+<li>ServerName</li>
+<li>DatabaseName</li>
+<li>SchemaName</li>
+<li>ObjectType</li>
+<li>ObjectTypeDesc</li>
+<li>ObjectName</li>
+<li>ReferencedServerName</li>
+<li>ReferencedDatabaseName</li>
+<li>ReferencedSchemaName</li>
+<li>ReferencedObjectType</li>
+<li>ReferencedObjectTypeDesc</li>
+<li>ReferencedObjectName</li>
+<li>ReferencedByServerName</li>
+<li>ReferencedByDatabaseName</li>
+<li>ReferencedBySchemaName</li>
+<li>ReferencedByObjectType</li>
+<li>ReferencedByObjectTypeDesc</li>
+<li>ReferencedByObjectName</li>
+</ul>
+<h1>Constraints</h1>
+<h2>Play by the rules: Reports for SQL Server Management Studio (SSMS)</h2>
+<p>In order to get the report executable also directly in SSMS, it may not reference Shared DataSources, Shared DataSets and Subreport, also Parameter-Handling is constrained. Therefore, the report does all the work itself, not referencing anything else but a database, which objects and dependencies are analyzed. Also the parameter handling is done in the result using a custom parameter pane and report actions executing the current report with different parameter set.</p>
+<p><img width="512" height="400" class="alignnone wp-image-306" alt="" src="./media/SSMS-CustomReports.png"></p>
+<h2>Differences between Report Versions</h2>
+<p>There are only very few differences between the Report Definitions for SSRS 2008R2 (including 2012 / 2014) and SSRS 2016:</p>
+<ol>
+<li>Schema of RDL-File
+<ul>
+<li>2008R2: http://schemas.microsoft.com/sqlserver/reporting/2010/01/reportdefinition</li>
+<li>2016: http://schemas.microsoft.com/sqlserver/reporting/2016/01/reportdefinition</li>
+</ul>
+</li>
+<li>ReportParametersLayout<br>
+With SSRS 2016, the layout of the parameters is customizable. Within the RDL-File, this is stored as ReportParametersLayout-Element.</li>
+</ol>
+<p>The SSRS 2016 Report may also work with newer versions - as long as the schema doesn't change.</p>
+<p>The Query itself is based on System Catalog Views, available in SQL Server &gt;= 2008 and Azure SQL Database.</p>
+<h1>Conclusion</h1>
+<p>The result became very complex, but in the end, it fulfills the purpose. Knowing the parts and how they fit together, the overall picture should be complex, but no longer complicated. Using this report, you should be able to easily analyze and document database dependencies.</p>
+<p>There may be further extensions to this report, not only to list objects and dependencies of the current database but of all databases of a server - e.g. using the very famous but also very shy and therefore officially undocumented stored procedure sp_MSforeachdb. Doing so may blow up the interoperability with Azure SQL Database. But there is also a way to work around this, resulting in a compatible version.</p>
+<p>Do you feel challenged? It's up to you! Start going beyond and please share your insights! <img draggable="false" class="emoji" alt="🙂" src="./media/1f642.svg"></p>
+<h1>Further Reading</h1>
+<ul>
+<li><a href="https://docs.microsoft.com/en-us/sql/reporting-services/reports/report-definition-language-ssrs">SQL Server RDL Specification</a></li>
+<li><a href="https://docs.microsoft.com/en-us/sql/ssms/object/custom-reports-in-management-studio">Custom Reports in Management Studio</a></li>
+<li><a href="https://docs.microsoft.com/en-us/sql/relational-databases/system-catalog-views/sys-foreign-keys-transact-sql">SQL Server System Catalog View: sys.foreign_keys</a></li>
+<li><a href="https://docs.microsoft.com/en-us/sql/relational-databases/system-catalog-views/sys-objects-transact-sql">SQL Server System Catalog View: sys.objects</a></li>
+<li><a href="https://docs.microsoft.com/en-us/sql/relational-databases/system-catalog-views/sys-sql-expression-dependencies-transact-sql">SQL Server System Catalog View: sys.sql_expression_dependencies</a></li>
+<li><a href="https://docs.microsoft.com/en-us/sql/relational-databases/system-catalog-views/sys-table-types-transact-sql">SQL Server System Catalog View: sys.table_types</a></li>
+</ul>
+	</div><!-- .entry-content -->
+
+
+
+</article><!-- #post-## -->
+
+			
+		</div><!-- #single-content -->
+
+
+	</div><!-- #primary -->
+
+
+</div><!-- .site-content -->
+
+
+
+</div><!-- .site -->
+
+
+	
+</body></html>
